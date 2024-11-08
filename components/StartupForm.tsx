@@ -7,43 +7,78 @@ import MDEditor from "@uiw/react-md-editor";
 import { Button } from "./ui/button";
 import { Send } from "lucide-react";
 import { formSchema } from "@/lib/validation";
+import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/router";
 
 const StartupForm = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pitch, setPitch] = useState("");
+  const { toast } = useToast();
+  const router = useRouter();
 
-  const handleFormSubmit = async (prevState: any, formData: FormData) =>{
+  const handleFormSubmit = async (prevState: any, formData: FormData) => {
     try {
-      const formValues ={
+      const formValues = {
         title: formData.get("title") as string,
         description: formData.get("description") as string,
         category: formData.get("category") as string,
         link: formData.get("link") as string,
         pitch,
-      }
-      await formSchema.parseAsync(formValues)
+      };
+      await formSchema.parseAsync(formValues);
 
-      console.log(formValues)
+      console.log(formValues);
 
       //const result = await createIdeas(prevState, formData, pitch)
 
       //console.log(result)
-    } catch (error) {
-      
-    }
-    finally{
 
+      if (result.status == "Success") {
+        toast({
+          title: "Success",
+          description: "Your startup pitch has been created successfully",
+        });
+        router.push(`/startup/${result.id}`);
+      }
+
+      return result
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const fieldErrors = error.flatten().fieldErrors;
+
+        setErrors(fieldErrors as unknown as Record<string, string>);
+
+        toast({
+          title: "Error",
+          description: "Please check your inputs",
+          variant: "destructive",
+        });
+
+        return { ...prevState, error: "Validation Failed", status: "ERROR" };
+      }
+      toast({
+        title: "Error",
+        description: "An unexpected error has occured",
+        variant: "destructive",
+      });
+
+      return {
+        ...prevState,
+        error: "An unexpected error has occured",
+        status: "ERROR",
+      };
+    } finally {
     }
-  }
+  };
 
   const [state, formAction, isPending] = useActionState(handleFormSubmit, {
     error: "",
     status: "INITIAL",
   });
-  
 
   return (
-    <form action={() => {}} className="startup-form">
+    <form action={formAction} className="startup-form">
       <div>
         <label htmlFor="title" className="startup-form_label">
           Title
@@ -55,6 +90,7 @@ const StartupForm = () => {
           required
           placeholder="Startup Title"
         />
+
         {errors.title && <p className="startup-form_error">{errors.title}</p>}
       </div>
 
@@ -69,6 +105,7 @@ const StartupForm = () => {
           required
           placeholder="Startup Description"
         />
+
         {errors.description && (
           <p className="startup-form_error">{errors.description}</p>
         )}
@@ -85,6 +122,7 @@ const StartupForm = () => {
           required
           placeholder="Startup Category (Tech, Health, Education...)"
         />
+
         {errors.category && (
           <p className="startup-form_error">{errors.category}</p>
         )}
@@ -101,6 +139,7 @@ const StartupForm = () => {
           required
           placeholder="Startup Image URL"
         />
+
         {errors.link && <p className="startup-form_error">{errors.link}</p>}
       </div>
 
@@ -108,6 +147,7 @@ const StartupForm = () => {
         <label htmlFor="pitch" className="startup-form_label">
           Pitch
         </label>
+
         <MDEditor
           value={pitch}
           onChange={(value) => setPitch(value as string)}
@@ -116,19 +156,24 @@ const StartupForm = () => {
           height={300}
           style={{ borderRadius: 20, overflow: "hidden" }}
           textareaProps={{
-            placeholder:'Briefly describe your idea and want problem it solves'
+            placeholder:
+              "Briefly describe your idea and what problem it solves",
           }}
           previewOptions={{
-            disallowedElements: ['style']
+            disallowedElements: ["style"],
           }}
         />
 
         {errors.pitch && <p className="startup-form_error">{errors.pitch}</p>}
       </div>
 
-      <Button type="submit" className="startup-form_btn text-white" disabled={isPending}>
-          {isPending? "Submitting...":"Submit Your Pitch"}
-          <Send className="size-6 ml-2"/>
+      <Button
+        type="submit"
+        className="startup-form_btn text-white"
+        disabled={isPending}
+      >
+        {isPending ? "Submitting..." : "Submit Your Pitch"}
+        <Send className="size-6 ml-2" />
       </Button>
     </form>
   );
